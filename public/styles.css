@@ -1,0 +1,83 @@
+body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    margin: 0;
+    background-color: #f4f4f4;
+}
+
+h1 {
+    text-align: center;
+    color: #065a3a;
+}
+
+form {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background-color: #065a3a;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 0 10px #065a3a;
+    max-width: 400px;
+    width: 100%;
+}
+
+label {
+    margin-top: 10px;
+    color: #fff;
+}
+
+input, button {
+    margin-top: 5px;
+    padding: 10px;
+    width: 100%;
+    max-width: 300px;
+    box-sizing: border-box;
+}
+
+button {
+    margin-top: 10px;
+    background-color: #065a3a;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+button:hover {
+    background-color: #048c58;
+}
+
+/* Estilo para as mensagens de sucesso e erro */
+#success-message, #error-message {
+    display: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+    margin-top: 20px; /* Espaçamento entre o formulário e as mensagens */
+    padding: 10px;
+    border-radius: 5px;
+    text-align: center;
+    width: 100%;
+    max-width: 300px;
+}
+
+#success-message {
+    background-color: #d4edda; /* Verde claro */
+    color: #155724; /* Texto verde escuro */
+}
+
+#error-message {
+    background-color: #f8d7da; /* Vermelho claro */
+    color: #721c24; /* Texto vermelho escuro */
+}
+
+/* Classe para mostrar mensagens */
+#success-message.show, #error-message.show {
+    display: block;
+    opacity: 1;
+}
+

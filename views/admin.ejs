@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel do Administrador</title>
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css' rel='stylesheet' />
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js'></script>
+    <script src="/socket.io/socket.io.js"></script>
+
+    <style>
+        /* Estilos para o painel */
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            position: relative;
+            background-color: #f5f5f5; /* Cor de fundo mais clara */
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        #calendar {
+            max-width: 900px;
+            margin: 20px auto; /* Espaço entre o topo e o calendário */
+            background-color: #ffffff; /* Mudança de fundo para branco */
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1); /* Sombra suave */
+        }
+        .notification {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #065a3a;
+        }
+        .notification-badge {
+            position: absolute;
+            top: 0;
+            right: 0;
+            background-color: red;
+            color: white;
+            border-radius: 50%;
+            padding: 3px 5px;
+            font-size: 10px;
+            display: none; /* Inicia como invisível */
+        }
+        #notification-list {
+            display: none; /* Começa oculto */
+            position: absolute;
+            top: 60px;
+            right: 20px;
+            width: 300px;
+            background-color: white;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            padding: 10px;
+            z-index: 1000;
+        }
+        .notification-item {
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+            transition: transform 0.3s ease;
+        }
+        .notification-item:hover {
+            transform: scale(1.02);
+        }
+
+        .no-notifications {
+        padding: 10px;
+        text-align: center;
+        font-size: 14px;
+        color: #666;
+        background-color: #f5f5f5;
+        border-radius: 5px;
+        }
+
+        .button {
+            padding: 5px 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-right: 5px;
+            color: white;
+            transition: background-color 0.3s, transform 0.3s;
+        }
+        .confirm-button {
+            background-color: #4CAF50; /* Verde */
+        }
+        .reject-button {
+            background-color: #f44336; /* Vermelho */
+        }
+        .button:focus, .button:hover {
+            background-color: #054d33;
+            transform: translateY(-2px);
+        }
+        .success-message, .error-message, .reject-message {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            display: none;
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 300px; /* Largura da mensagem */
+            z-index: 999; /* Para garantir que fique acima de outros elementos */
+        }
+        .success-message {
+            background-color: #ccffcc; /* Fundo verde claro para sucesso */
+            color: green; /* Texto verde */
+        }
+        .success-message::before {
+            content: "✔️ ";
+        }
+        .error-message {
+            background-color: #d32f2f; /* Vermelho mais escuro */
+            color: white;
+        }
+        .error-message::before {
+            content: "❌ ";
+        }
+        .reject-message {
+            background-color: #ffcccc; /* Fundo claro para rejeição */
+            color: red; /* Texto em vermelho */
+        }
+        .reject-message::before {
+            content: "⚠️ ";
+        }
+        .fc-event-time {
+            display: none !important; /* Oculta o tempo dos eventos */
+        }
+        /* Estilo do tooltip */
+        .tooltip {
+            display: none;
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+            transition: opacity 0.3s;
+            z-index: 1000;
+            white-space: nowrap;
+        }
+
+        .tooltip-show {
+            display: block;
+            opacity: 1;
+        }
+
+        .tooltip-hide {
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #historico-reservas h2 {
+            text-align: center; /* Centraliza o título */
+            margin-bottom: 20px; /* Espaçamento abaixo do título */
+            font-weight: bold; /* Negrito para destaque */
+        }
+
+        /* Estilos para o histórico de reservas */
+        #historico-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .historico-item {
+            padding: 10px;
+            background-color: #f7f7f7; /* Fundo similar ao das notificações */
+            border: 1px solid #ccc; /* Borda para separar cada item */
+            border-radius: 5px; /* Borda arredondada para um visual mais agradável */
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); /* Leve sombra para destaque */
+            transition: background-color 0.3s;
+        }
+
+        .historico-item:hover {
+            background-color: #e9e9e9; /* Alteração de cor ao passar o mouse */
+        }
+
+        /* Estilos responsivos */
+        @media (max-width: 768px) {
+            #calendar {
+                width: 100%; /* Largura total em telas menores */
+                padding: 10px; /* Reduzir padding */
+            }
+            .notification-item, .historico-item {
+                font-size: 14px;
+                padding: 8px;
+            }
+            .button {
+                font-size: 12px;
+                padding: 4px 8px;
+            }
+        }
+        #paginacao-controles {
+            display: flex;
+            justify-content: center; /* Centraliza os controles */
+            align-items: center; /* Alinha verticalmente */
+            margin-top: 20px; /* Espaço acima */
+        }
+        #paginacao-controles button {
+            background-color: #065a3a; /* Cor de fundo dos botões */
+            color: white; /* Cor do texto */
+            border: none; /* Remove bordas */
+            padding: 8px 16px; /* Espaçamento interno */
+            margin: 0 10px; /* Espaçamento entre os botões */
+            cursor: pointer; /* Cursor de ponteiro ao passar o mouse */
+            border-radius: 4px; /* Bordas arredondadas */
+            transition: background-color 0.3s; /* Transição suave */
+        }
+        #paginacao-controles button:hover {
+            background-color: #054d33; /* Cor ao passar o mouse */
+        }
+        #pagina-info {
+            font-weight: bold; /* Negrito para destacar o texto */
+            margin: 0 10px; /* Espaçamento ao redor */
+        }
+        #icone-filtro {
+            cursor: pointer;
+            margin-left: 10px;
+            font-size: 20px;
+            vertical-align: middle;
+            color: #054d33; /* Adicionando a cor desejada */
+        }
+
+        #filtro-reservas {
+        display: flex;
+        justify-content: center; /* Centraliza horizontalmente */
+        align-items: center; /* Alinha verticalmente */
+        gap: 15px; /* Espaçamento entre os elementos */
+        flex-wrap: wrap; /* Permite que os elementos fiquem em várias linhas em telas menores */
+        padding: 10px;
+        border: 1px solid #ccc;
+        margin: 20px auto; /* Margem automática para centralização na página */
+        background-color: #f9f9f9;
+        border-radius: 5px;
+        max-width: 800px; /* Limita a largura do filtro */
+    }
+
+    #filtro-reservas label {
+        font-weight: bold; /* Negrito para os rótulos */
+        color: #333; /* Cor do texto */
+    }
+
+    #filtro-reservas select,
+    #filtro-reservas input {
+        padding: 5px; /* Espaçamento interno */
+        border: 1px solid #ccc; /* Borda */
+        border-radius: 4px; /* Bordas arredondadas */
+        font-size: 14px; /* Tamanho da fonte */
+    }
+
+    #filtro-reservas button {
+        background-color: #065a3a; /* Cor de fundo do botão */
+        color: white; /* Cor do texto do botão */
+        border: none; /* Remove bordas do botão */
+        padding: 6px 12px; /* Espaçamento interno do botão */
+        cursor: pointer; /* Cursor de ponteiro */
+        border-radius: 4px; /* Bordas arredondadas */
+        transition: background-color 0.3s; /* Transição suave */
+    }
+
+    #filtro-reservas button:hover {
+    background-color: #054d33; /* Cor do botão ao passar o mouse */
+    }
+
+    .button:focus, #icone-filtro:focus {
+    outline: 2px solid #065a3a;
+    outline-offset: 2px;
+    }
+
+    </style>        
+    </style>
+</head>
+<body>
+    <h1>Painel do Administrador</h1>
+    
+    <div class="notification" onclick="toggleNotificationList()">
+        <i class="fas fa-bell"></i>
+        <span class="notification-badge" id="notification-count" style="display: none;">0</span>
+    </div>
+
+    <div id="notification-list"></div> <!-- Removeu a mensagem extra -->
+    
+    <div id="calendar"></div>
+
+    <div class="tooltip" id="tooltip"></div>
+
+    <div class="success-message" id="success-message"></div>
+    <div class="error-message" id="error-message"></div>
+    <div class="reject-message" id="reject-message"></div>
+
+    <div id="historico-reservas">
+        <h2>
+            Histórico de Reservas 
+            <i class="fas fa-filter" id="icone-filtro" onclick="toggleFiltroReservas()"></i>
+        </h2>
+        <div id="filtro-reservas" style="display: none;"> 
+            <label for="filtro-status">Status:</label>
+            <select id="filtro-status">
+                <option value="">Todos</option>
+                <option value="confirmada">Confirmada</option>
+                <option value="pendente">Pendente</option>
+                <option value="rejeitada">Rejeitada</option>
+            </select>
+        
+            <label for="filtro-data-inicio">Data de Início:</label>
+            <input type="date" id="filtro-data-inicio">
+        
+            <label for="filtro-data-fim">Data de Fim:</label>
+            <input type="date" id="filtro-data-fim">
+        
+            <button onclick="aplicarFiltro()">Aplicar Filtro</button>
+        </div>
+        
+        <div id="historico-list">
+            <!-- Os itens do histórico serão gerados dinamicamente aqui -->
+        </div>
+        <div id="paginacao-controles">
+            <button id="anterior" onclick="paginaAnterior()">Anterior</button>
+            <span id="pagina-info"></span>
+            <button id="proximo" onclick="proximaPagina()">Próximo</button>
+        </div>
+    </div>    
+    
+    <script>
+    const notificationCount = document.getElementById('notification-count');
+    const notificationList = document.getElementById('notification-list');
+    const successMessage = document.getElementById('success-message');
+    const errorMessage = document.getElementById('error-message');
+    const rejectMessage = document.getElementById('reject-message');
+    const calendarEl = document.getElementById('calendar');
+    const tooltip = document.getElementById('tooltip');
+    const historicoList = document.getElementById('historico-list');
+    const emptyNotificationMessage = document.getElementById('empty-notification-message'); // <--- Adicionei esta linha
+    const itensPorPagina = 5;
+    let calendar; 
+    let pendingReservations = [];
+    let paginaAtual = 1;
+
+        function toggleFiltroReservas() {
+            const filtroReservas = document.getElementById('filtro-reservas');
+            filtroReservas.style.display = filtroReservas.style.display === 'none' ? 'block' : 'none';
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const socket = io();
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                locale: 'pt-br',
+                height: 'auto',
+                events: [],
+                eventDidMount: function(info) {
+                    const timeEl = info.el.querySelector('.fc-event-time');
+                    if (timeEl) {
+                        timeEl.remove();
+                    }
+
+                    const startTime = info.event.start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                    const endTime = info.event.end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+                    info.el.addEventListener('mouseenter', function() {
+                        tooltip.innerText = `Início: ${startTime}\nFim: ${endTime}`;
+                        tooltip.style.display = 'block';
+                        tooltip.style.left = `${info.el.getBoundingClientRect().left + window.scrollX}px`;
+                        tooltip.style.top = `${info.el.getBoundingClientRect().top + window.scrollY - tooltip.offsetHeight}px`;
+                    });
+
+                    info.el.addEventListener('mouseleave', function() {
+                        tooltip.style.display = 'none';
+                    });
+                }
+            });
+
+            fetch('/admin/reservas')
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(reserva => {
+                        if (reserva.status === 'confirmada') {
+                            calendar.addEvent({
+                                id: reserva._id,
+                                title: reserva.nome,
+                                start: new Date(reserva.dataInicio),
+                                end: new Date(reserva.dataFim),
+                                backgroundColor: '#054d33',
+                                borderColor: '#054d33',
+                                textColor: '#FFFFFF',
+                                extendedProps: { email: reserva.email, id: reserva._id }
+                            });
+                        } else if (reserva.status === 'pendente') {
+                            pendingReservations.push(reserva);
+                            addNotification(reserva);
+                        }
+                    });
+                    updateNotificationCount();
+                })
+                .catch(err => {
+                    console.error('Erro ao buscar reservas:', err);
+                    showError('Erro ao carregar reservas.');
+                });
+
+            calendar.render();
+
+            socket.on('novaReserva', function(reserva) {
+                pendingReservations.push(reserva);
+                addNotification(reserva);
+                updateNotificationCount();
+            });
+
+            fetchHistoricoReservas();
+        });
+
+        function toggleNotificationList() {
+    // Alterna a visibilidade da lista de notificações
+    if (notificationList.style.display === 'block') {
+        notificationList.style.display = 'none';
+    } else {
+        notificationList.style.display = 'block';
+
+        // Verifica se há notificações pendentes
+        if (pendingReservations.length === 0) {
+            // Se não houver notificações pendentes, mostra uma mensagem amigável
+            notificationList.innerHTML = '<div class="no-notifications">Nenhuma notificação no momento</div>';
+        } else {
+            // Caso haja notificações, limpa a lista e adiciona novamente as notificações
+            notificationList.innerHTML = ''; // Limpa a lista
+            pendingReservations.forEach(addNotification); // Adiciona notificações pendentes
+        }
+    }
+}
+
+        function showError(message) {
+            errorMessage.innerText = message;
+            errorMessage.style.display = 'block';
+            setTimeout(() => {
+                errorMessage.style.display = 'none';
+            }, 3000);
+        }
+
+        function addNotification(reserva) {
+            const startDate = new Date(reserva.dataInicio);
+            const endDate = new Date(reserva.dataFim);
+
+            const notificationItem = document.createElement('div');
+            notificationItem.className = 'notification-item';
+            notificationItem.setAttribute('data-id', reserva._id);
+            notificationItem.innerHTML = `
+                <strong>Usuário: ${reserva.nome}</strong><br>
+                Email: ${reserva.email}<br>
+                Data de Início: ${startDate.toLocaleDateString('pt-BR')}, ${startDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}<br>
+                Data de Fim: ${endDate.toLocaleDateString('pt-BR')}, ${endDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}<br>
+                <button class="button confirm-button" onclick="confirmarReserva('${reserva._id}')">Confirmar</button>
+                <button class="button reject-button" onclick="rejeitarReserva('${reserva._id}')">Rejeitar</button>
+            `;
+
+            notificationList.prepend(notificationItem);
+            notificationList.style.display = 'block';
+        }
+
+function updateNotificationCount() {
+    const count = pendingReservations.length;
+    notificationCount.innerText = count;
+    notificationCount.style.display = count > 0 ? 'block' : 'none';
+
+    // Exibir ou ocultar a mensagem de "nenhuma notificação" com base na contagem
+    if (emptyNotificationMessage) {
+        emptyNotificationMessage.style.display = count > 0 ? 'none' : 'block';
+    }
+}
+
+function confirmarReserva(reservaId) {
+    fetch(`/admin/reservas/confirmar/${reservaId}`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const reserva = data.reserva;
+
+                calendar.addEvent({
+                    id: reserva._id,
+                    title: reserva.nome,
+                    start: new Date(reserva.dataInicio),
+                    end: new Date(reserva.dataFim),
+                    backgroundColor: '#054d33',
+                    borderColor: '#054d33',
+                    textColor: '#FFFFFF',
+                });
+
+                pendingReservations = pendingReservations.filter(res => res._id !== reservaId);
+                updateNotificationCount();
+
+                const notificationItem = document.querySelector(`.notification-item[data-id='${reservaId}']`);
+                if (notificationItem) {
+                    notificationItem.remove();
+                }
+
+                notificationList.style.display = 'none'; // Fecha a lista de notificações
+
+                updateStatusHistorico(reserva._id, 'Confirmada');
+                addReservaToHistorico({ ...reserva, status: 'Confirmada' });
+
+                successMessage.innerText = 'Reserva confirmada com sucesso!';
+                successMessage.style.display = 'block';
+                setTimeout(() => {
+                    successMessage.style.display = 'none';
+                }, 3000);
+            } else {
+                showError('Erro ao confirmar a reserva.');
+            }
+        })
+        .catch(err => {
+            console.error('Erro ao confirmar reserva:', err);
+            showError('Erro ao confirmar a reserva.');
+        });
+    }
+
+        function rejeitarReserva(reservaId) {
+            fetch(`/admin/reservas/rejeitar/${reservaId}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    pendingReservations = pendingReservations.filter(res => res._id !== reservaId);
+                    updateNotificationCount();
+
+                const notificationItem = document.querySelector(`.notification-item[data-id='${reservaId}']`);
+                if (notificationItem) {
+                    const nome = notificationItem.querySelector('strong').innerText.split(': ')[1];
+                    const email = notificationItem.innerHTML.match(/Email: (.+?)<br>/)[1];
+
+                    updateStatusHistorico(reservaId, 'Rejeitada');
+                    const reservaRejeitada = {
+                        _id: reservaId,
+                        nome: nome,
+                        email: email,
+                        dataInicio: new Date(),
+                        dataFim: new Date(),
+                        status: 'Rejeitada'
+                    };
+                    addReservaToHistorico(reservaRejeitada);
+
+                    notificationItem.remove();
+                }
+
+                notificationList.style.display = 'none'; // Fecha a lista de notificações
+
+                rejectMessage.innerText = 'Reserva rejeitada com sucesso!';
+                rejectMessage.style.display = 'block';
+                setTimeout(() => {
+                    rejectMessage.style.display = 'none';
+                }, 3000);
+            } else {
+                showError('Erro ao rejeitar a reserva.');
+            }
+        })
+        .catch(err => {
+            console.error('Erro ao rejeitar reserva:', err);
+            showError('Erro ao rejeitar a reserva.');
+        });
+    }
+
+        function rejeitarReserva(reservaId) {
+        fetch(`/admin/reservas/rejeitar/${reservaId}`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Remove da lista de pendentes
+                pendingReservations = pendingReservations.filter(res => res._id !== reservaId);
+                updateNotificationCount();
+
+                const notificationItem = document.querySelector(`.notification-item[data-id='${reservaId}']`);
+                if (notificationItem) {
+                    // Obtenha o nome e e-mail diretamente dos elementos, não use querySelector para texto literal
+                    const nome = notificationItem.querySelector('strong').innerText.split(': ')[1];
+                    const email = notificationItem.innerHTML.match(/Email: (.+?)<br>/)[1];
+
+                    // Atualize o status no histórico para "Rejeitada"
+                    const status = 'Rejeitada';
+                    updateStatusHistorico(reservaId, status);
+
+                    // Adiciona a reserva ao histórico de forma dinâmica
+                    const reservaRejeitada = {
+                        _id: reservaId,
+                        nome: nome,
+                        email: email,
+                        dataInicio: new Date(), // Suponha que esses dados serão buscados ou use valores de exemplo
+                        dataFim: new Date(), // Suponha que esses dados serão buscados ou use valores de exemplo
+                        status
+                    };
+                    addReservaToHistorico(reservaRejeitada);
+
+                    notificationList.style.display = 'none';
+
+                    // Remove o item de notificação após rejeitar
+                    notificationItem.remove();
+                }
+
+
+
+                rejectMessage.innerText = 'Reserva rejeitada com sucesso!';
+                rejectMessage.style.display = 'block';
+                setTimeout(() => {
+                    rejectMessage.style.display = 'none';
+                }, 3000);
+            } else {
+                showError('Erro ao rejeitar a reserva.');
+            }
+        })
+        .catch(err => {
+            console.error('Erro ao rejeitar reserva:', err);
+            showError('Erro ao rejeitar a reserva.');
+        });
+    }
+
+
+    function fetchHistoricoReservas() {
+    const status = document.getElementById('filtro-status').value;
+    const dataInicio = document.getElementById('filtro-data-inicio').value;
+    const dataFim = document.getElementById('filtro-data-fim').value;
+    
+    // Monta os parâmetros de query string para enviar ao servidor
+    const params = new URLSearchParams({
+        page: paginaAtual,
+        limit: itensPorPagina,
+        status: status || '', 
+        dataInicio: dataInicio || '', 
+        dataFim: dataFim || ''
+    });
+
+    fetch(`/admin/reservas/historico?${params.toString()}`)
+        .then(response => response.json())
+        .then(data => {
+            updateHistoricoReservas(data.reservas);
+            atualizarPaginacao(data.totalReservas);
+        })
+        .catch(err => {
+            console.error('Erro ao buscar histórico de reservas:', err);
+            showError('Erro ao carregar histórico de reservas.');
+        });
+}
+
+function aplicarFiltro() {
+    // Reseta para a primeira página ao aplicar um filtro
+    paginaAtual = 1;
+    fetchHistoricoReservas();
+}
+
+function addReservaToHistorico(reserva) {
+    const item = document.createElement('div');
+    item.className = 'historico-item';
+    item.setAttribute('data-id', reserva._id); // Adiciona o data-id para identificação
+    item.innerHTML = `
+        <strong>Status: ${reserva.status}</strong><br>
+        Usuário: ${reserva.nome}<br>
+        Email: ${reserva.email}<br>
+        Data de Início: ${new Date(reserva.dataInicio).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}<br>
+        Data de Fim: ${new Date(reserva.dataFim).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })}<br>
+    `;
+    historicoList.appendChild(item);
+}
+
+function updateStatusHistorico(reservaId, novoStatus) {
+    const historicoItems = document.querySelectorAll('.historico-item');
+    historicoItems.forEach(item => {
+        if (item.getAttribute('data-id') === reservaId) { // Verifica o data-id
+            const statusElement = item.querySelector('strong');
+            if (statusElement) {
+                statusElement.innerText = `Status: ${novoStatus}`; // Atualiza o status
+            }
+        }
+    });
+}
+
+function updateHistoricoReservas(reservas) {
+    historicoList.innerHTML = ''; 
+    reservas.forEach(addReservaToHistorico);
+}
+
+function atualizarPaginacao(totalReservas) {
+    const totalPaginas = Math.ceil(totalReservas / itensPorPagina);
+    document.getElementById('pagina-info').innerText = `Página ${paginaAtual} de ${totalPaginas}`;
+    
+    document.getElementById('anterior').disabled = paginaAtual === 1;
+    document.getElementById('proximo').disabled = paginaAtual === totalPaginas;
+}
+
+function paginaAnterior() {
+    if (paginaAtual > 1) {
+        paginaAtual--;
+        fetchHistoricoReservas();
+    }
+}
+
+function proximaPagina() {
+    paginaAtual++;
+    fetchHistoricoReservas();
+}
+
+    </script>
+</body>
+</html>
