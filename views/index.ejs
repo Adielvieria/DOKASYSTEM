@@ -36,7 +36,7 @@
         label {
             margin-top: 10px;
             color: #fff;
-            align-self: flex-start; /* Alinha os rótulos à esquerda */
+            align-self: flex-start;
         }
         input, select, button {
             margin-top: 10px;
@@ -49,7 +49,7 @@
         }
         button {
             margin-top: 15px;
-            background-color: #048c58; /* Cor do botão */
+            background-color: #048c58;
             color: white;
             border: none;
             cursor: pointer;
@@ -57,7 +57,7 @@
             transition: background-color 0.3s;
         }
         button:hover {
-            background-color: #037a4a; /* Cor do botão ao passar o mouse */
+            background-color: #037a4a;
         }
         img {
             max-width: 250px;
@@ -101,9 +101,9 @@
             <script>
                 for (let i = 0; i < 24; i++) {
                     const hora = i.toString().padStart(2, '0');
-                    document.write(`<option value="${hora}:00">${hora}:00</option>`);
+                    $('#horaInicio').append(`<option value="${hora}:00">${hora}:00</option>`);
                     for (let j = 15; j < 60; j += 15) {
-                        document.write(`<option value="${hora}:${j.toString().padStart(2, '0')}">${hora}:${j.toString().padStart(2, '0')}</option>`);
+                        $('#horaInicio').append(`<option value="${hora}:${j.toString().padStart(2, '0')}">${hora}:${j.toString().padStart(2, '0')}</option>`);
                     }
                 }
             </script>
@@ -118,9 +118,9 @@
             <script>
                 for (let i = 0; i < 24; i++) {
                     const hora = i.toString().padStart(2, '0');
-                    document.write(`<option value="${hora}:00">${hora}:00</option>`);
+                    $('#horaFim').append(`<option value="${hora}:00">${hora}:00</option>`);
                     for (let j = 15; j < 60; j += 15) {
-                        document.write(`<option value="${hora}:${j.toString().padStart(2, '0')}">${hora}:${j.toString().padStart(2, '0')}</option>`);
+                        $('#horaFim').append(`<option value="${hora}:${j.toString().padStart(2, '0')}">${hora}:${j.toString().padStart(2, '0')}</option>`);
                     }
                 }
             </script>
@@ -134,15 +134,13 @@
 
     <script src="/socket.io/socket.io.js"></script>
     <script>
-        const socket = io(); // Conectar ao servidor Socket.io
+        const socket = io();
 
-        // Definir o mínimo para a data de início
         const today = new Date();
         const todayString = today.toISOString().slice(0, 10);
         document.getElementById('dataInicio').setAttribute('min', todayString);
         document.getElementById('dataFim').setAttribute('min', todayString);
 
-        // Função para buscar horários já reservados e desabilitá-los no formulário
         function atualizarHorariosIndisponiveis(data) {
             if (!data) return;
 
@@ -153,11 +151,8 @@
                 success: function(response) {
                     if (response.success) {
                         const horariosIndisponiveis = response.horariosIndisponiveis;
-
-                        // Habilitar todos os horários inicialmente
                         $('#horaInicio option, #horaFim option').prop('disabled', false);
 
-                        // Desabilitar os horários já reservados
                         horariosIndisponiveis.forEach(function(horario) {
                             const horaInicio = horario.horaInicio;
                             const horaFim = horario.horaFim;
@@ -184,44 +179,43 @@
             });
         }
 
-        // Função para desabilitar horários passados
         function desabilitarHorariosPassados() {
             const now = new Date();
+            const today = now.toISOString().slice(0, 10);
             const currentHour = now.getHours();
             const currentMinute = now.getMinutes();
-            const today = now.toISOString().slice(0, 10); // Data de hoje no formato YYYY-MM-DD
 
-            // Desabilitar horários passados
             $('#horaInicio option').each(function() {
                 const [hora, minuto] = $(this).val().split(':').map(Number);
-                if (today === $('#dataInicio').val() && (hora < currentHour || (hora === currentHour && minuto <= currentMinute))) {
+                if ($('#dataInicio').val() === today && (hora < currentHour || (hora === currentHour && minuto < currentMinute))) {
                     $(this).prop('disabled', true);
                 }
             });
 
             $('#horaFim option').each(function() {
                 const [hora, minuto] = $(this).val().split(':').map(Number);
-                if (today === $('#dataFim').val() && (hora < currentHour || (hora === currentHour && minuto <= currentMinute))) {
+                if ($('#dataFim').val() === today && (hora < currentHour || (hora === currentHour && minuto < currentMinute))) {
                     $(this).prop('disabled', true);
                 }
             });
         }
 
-        // Quando a data de início for selecionada, atualizar horários
+        $('#dataInicio, #dataFim, #horaInicio, #horaFim').on('change', function() {
+            desabilitarHorariosPassados();
+        });
+
         $('#dataInicio').on('change', function() {
             const data = $(this).val();
             atualizarHorariosIndisponiveis(data);
             desabilitarHorariosPassados();
         });
 
-        // Quando a data de término for selecionada, atualizar horários
         $('#dataFim').on('change', function() {
             const data = $(this).val();
             atualizarHorariosIndisponiveis(data);
             desabilitarHorariosPassados();
         });
 
-        // Validação de data e hora no envio do formulário
         $('#dataInicio, #horaInicio, #dataFim, #horaFim').on('change', function() {
             const dataInicio = new Date($('#dataInicio').val() + 'T' + $('#horaInicio').val());
             const dataFim = new Date($('#dataFim').val() + 'T' + $('#horaFim').val());
@@ -230,14 +224,13 @@
                 $('#resultado').text('A data e hora de término devem ser posteriores à de início.')
                     .removeClass('mensagem').addClass('mensagem-erro').show();
             } else {
-                $('#resultado').hide();  // Limpa a mensagem de erro ao corrigir os dados
-                $('#resultado').text(''); // Reseta o texto da mensagem para garantir um novo estado
+                $('#resultado').hide();
+                $('#resultado').text('');
             }
         });
 
-        // Submissão do formulário com validação
         document.querySelector('#reservaForm').addEventListener('submit', function(event) {
-            event.preventDefault(); // Previne o envio padrão do formulário
+            event.preventDefault();
 
             const dataInicio = new Date($('#dataInicio').val() + 'T' + $('#horaInicio').val());
             const dataFim = new Date($('#dataFim').val() + 'T' + $('#horaFim').val());
@@ -245,11 +238,9 @@
             if (dataInicio >= dataFim) {
                 $('#resultado').text('A data e hora de término devem ser posteriores à de início.')
                     .removeClass('mensagem').addClass('mensagem-erro').show();
-                return;  // Impede o envio apenas se a validação falhar
+                return;
             }
 
-            // Limpa as mensagens de erro e processa o envio
-            $('#resultado').hide();
             $('#loading').show();
 
             const formData = $(this).serialize();
@@ -259,22 +250,32 @@
                 type: 'POST',
                 data: formData,
                 success: function(response) {
-                    $('#loading').hide();
                     if (response.success) {
-                        $('#resultado').text('Reserva realizada com sucesso!')
+                        $('#resultado').text(response.message)
                             .removeClass('mensagem-erro').addClass('mensagem').show();
-                        $('#reservaForm')[0].reset();  // Reseta o formulário após o sucesso
                     } else {
                         $('#resultado').text(response.message)
                             .removeClass('mensagem').addClass('mensagem-erro').show();
                     }
-                },
-                error: function(xhr, status, error) {
                     $('#loading').hide();
-                    $('#resultado').text('Ocorreu um erro ao realizar a reserva. Tente novamente.')
+                },
+                error: function() {
+                    $('#resultado').text('Ocorreu um erro ao processar a reserva.')
                         .removeClass('mensagem').addClass('mensagem-erro').show();
+                    $('#loading').hide();
                 }
             });
+        });
+
+        $(document).ready(function() {
+            desabilitarHorariosPassados();
+        });
+
+        socket.on('atualizarHorarios', function() {
+            const data = $('#dataInicio').val();
+            if (data) {
+                atualizarHorariosIndisponiveis(data);
+            }
         });
     </script>
 </body>

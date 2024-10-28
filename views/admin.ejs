@@ -138,6 +138,17 @@
         .fc-event-time {
             display: none !important; /* Oculta o tempo dos eventos */
         }
+
+        .fc-button-primary {
+        background-color: #065a3a !important; /* Define a nova cor de fundo */
+        border-color: #065a3a !important; /* Define a nova cor da borda */
+        }
+
+        .fc-button-primary:hover {
+        background-color: #054d31 !important; /* Cor ao passar o mouse, ajuste conforme necessário */
+        border-color: #054d31 !important; /* Cor da borda ao passar o mouse */
+        }
+
         /* Estilo do tooltip */
         .tooltip {
             display: none;
@@ -356,89 +367,144 @@
         }
 
         document.addEventListener('DOMContentLoaded', function() {
-            const socket = io();
+    const socket = io();
 
-            calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                locale: 'pt-br',
-                height: 'auto',
-                events: [],
-                eventDidMount: function(info) {
-                    const timeEl = info.el.querySelector('.fc-event-time');
-                    if (timeEl) {
-                        timeEl.remove();
-                    }
+    calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        locale: 'pt-br',
+        height: 'auto',
+        events: [],
+        eventDidMount: function(info) {
+            const timeEl = info.el.querySelector('.fc-event-time');
+            if (timeEl) {
+                timeEl.remove();
+            }
 
-                    const startTime = info.event.start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-                    const endTime = info.event.end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const startTime = info.event.start.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const endTime = info.event.end.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-                    info.el.addEventListener('mouseenter', function() {
-                        tooltip.innerText = `Início: ${startTime}\nFim: ${endTime}`;
-                        tooltip.style.display = 'block';
-                        tooltip.style.left = `${info.el.getBoundingClientRect().left + window.scrollX}px`;
-                        tooltip.style.top = `${info.el.getBoundingClientRect().top + window.scrollY - tooltip.offsetHeight}px`;
+            const now = new Date();
+            const endDate = new Date(info.event.end);
+
+            if (endDate < now) {
+                const titleEl = info.el.querySelector('.fc-event-title');
+                if (titleEl) {
+                    titleEl.style.color = '#A9A9A9'; // Define a cor cinza claro para eventos passados
+                }
+            }
+
+            info.el.addEventListener('mouseenter', function() {
+                tooltip.innerText = `Início: ${startTime}\nFim: ${endTime}`;
+                tooltip.style.display = 'block';
+                tooltip.style.left = `${info.el.getBoundingClientRect().left + window.scrollX}px`;
+                tooltip.style.top = `${info.el.getBoundingClientRect().top + window.scrollY - tooltip.offsetHeight}px`;
+            });
+
+            info.el.addEventListener('mouseleave', function() {
+                tooltip.style.display = 'none';
+            });
+        }
+    });
+
+    fetch('/admin/reservas')
+        .then(response => response.json())
+        .then(data => {
+            const now = new Date();
+            data.forEach(reserva => {
+                const dataFimReserva = new Date(reserva.dataFim);
+                let backgroundColor = '#054d33';
+                let borderColor = '#054d33';
+                let textColor = '#FFFFFF';
+                
+                if (dataFimReserva < now) {
+                    backgroundColor = '#d3d3d3';
+                    borderColor = '#d3d3d3';
+                    textColor = '#A9A9A9';
+                }
+
+                if (reserva.status === 'confirmada') {
+                    calendar.addEvent({
+                        id: reserva._id,
+                        title: reserva.nome,
+                        start: new Date(reserva.dataInicio),
+                        end: new Date(reserva.dataFim),
+                        backgroundColor: backgroundColor,
+                        borderColor: borderColor,
+                        textColor: textColor,
+                        extendedProps: { email: reserva.email, id: reserva._id }
                     });
-
-                    info.el.addEventListener('mouseleave', function() {
-                        tooltip.style.display = 'none';
-                    });
+                } else if (reserva.status === 'pendente') {
+                    pendingReservations.push(reserva);
+                    addNotification(reserva);
                 }
             });
-
-            fetch('/admin/reservas')
-                .then(response => response.json())
-                .then(data => {
-                    data.forEach(reserva => {
-                        if (reserva.status === 'confirmada') {
-                            calendar.addEvent({
-                                id: reserva._id,
-                                title: reserva.nome,
-                                start: new Date(reserva.dataInicio),
-                                end: new Date(reserva.dataFim),
-                                backgroundColor: '#054d33',
-                                borderColor: '#054d33',
-                                textColor: '#FFFFFF',
-                                extendedProps: { email: reserva.email, id: reserva._id }
-                            });
-                        } else if (reserva.status === 'pendente') {
-                            pendingReservations.push(reserva);
-                            addNotification(reserva);
-                        }
-                    });
-                    updateNotificationCount();
-                })
-                .catch(err => {
-                    console.error('Erro ao buscar reservas:', err);
-                    showError('Erro ao carregar reservas.');
-                });
-
-            calendar.render();
-
-            socket.on('novaReserva', function(reserva) {
-                pendingReservations.push(reserva);
-                addNotification(reserva);
-                updateNotificationCount();
-            });
-
-            fetchHistoricoReservas();
+            updateNotificationCount();
+        })
+        .catch(err => {
+            console.error('Erro ao buscar reservas:', err);
+            showError('Erro ao carregar reservas.');
         });
 
-        function toggleNotificationList() {
-    // Alterna a visibilidade da lista de notificações
+    calendar.render();
+
+    socket.on('novaReserva', function(reserva) {
+        pendingReservations.push(reserva);
+        // Remove "Nenhuma notificação no momento" se existir
+        removeNoNotificationMessage();
+        addNotification(reserva);
+        updateNotificationCount();
+    });
+
+    fetchHistoricoReservas();
+});
+
+function toggleNotificationList() {
     if (notificationList.style.display === 'block') {
         notificationList.style.display = 'none';
     } else {
         notificationList.style.display = 'block';
 
-        // Verifica se há notificações pendentes
         if (pendingReservations.length === 0) {
-            // Se não houver notificações pendentes, mostra uma mensagem amigável
             notificationList.innerHTML = '<div class="no-notifications">Nenhuma notificação no momento</div>';
         } else {
-            // Caso haja notificações, limpa a lista e adiciona novamente as notificações
-            notificationList.innerHTML = ''; // Limpa a lista
-            pendingReservations.forEach(addNotification); // Adiciona notificações pendentes
+            notificationList.innerHTML = '';
+            pendingReservations.forEach(addNotification);
         }
+    }
+}
+
+function updateNotificationCount() {
+    const count = pendingReservations.length;
+    notificationCount.innerText = count;
+
+    if (count > 0) {
+        removeNoNotificationMessage();
+    }
+}
+
+function addNotification(reserva) {
+    // Remove "Nenhuma notificação no momento" se existir
+    removeNoNotificationMessage();
+
+    const notificationItem = document.createElement('div');
+    notificationItem.className = 'notification-item';
+    notificationItem.dataset.id = reserva._id;
+    notificationItem.innerHTML = `
+        <strong>Usuário: ${reserva.nome}</strong><br>
+        Email: ${reserva.email}<br>
+        Data de Início: ${new Date(reserva.dataInicio).toLocaleString('pt-BR')}<br>
+        Data de Fim: ${new Date(reserva.dataFim).toLocaleString('pt-BR')}<br>
+        <button class="button confirm-button" onclick="confirmarReserva('${reserva._id}')">Confirmar</button>
+        <button class="button reject-button" onclick="rejeitarReserva('${reserva._id}')">Rejeitar</button>
+    `;
+    notificationList.appendChild(notificationItem);
+}
+
+// Helper function to remove the "Nenhuma notificação no momento" message
+function removeNoNotificationMessage() {
+    const noNotificationsEl = notificationList.querySelector('.no-notifications');
+    if (noNotificationsEl) {
+        noNotificationsEl.remove();
     }
 }
 
