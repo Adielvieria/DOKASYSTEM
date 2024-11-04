@@ -227,25 +227,25 @@ app.post('/admin/reservas/confirmar/:id', async (req, res) => {
         }
 
         if (reserva.status === 'pendente') {
-            const reservaConfirmada = await Reserva.findByIdAndUpdate(reservaId, { status: 'confirmada' }, { new: true });
+            const reservaconfirmada = await Reserva.findByIdAndUpdate(reservaId, { status: 'confirmada' }, { new: true });
 
             // Formatação amigável para as datas e horas
-            const dataInicioFormatada = new Date(reservaConfirmada.dataInicio).toLocaleDateString('pt-BR', { dateStyle: 'short' });
-            const horaInicioFormatada = new Date(reservaConfirmada.dataInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const dataInicioFormatada = new Date(reservaconfirmada.dataInicio).toLocaleDateString('pt-BR', { dateStyle: 'short' });
+            const horaInicioFormatada = new Date(reservaconfirmada.dataInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-            const dataFimFormatada = new Date(reservaConfirmada.dataFim).toLocaleDateString('pt-BR', { dateStyle: 'short' });
-            const horaFimFormatada = new Date(reservaConfirmada.dataFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const dataFimFormatada = new Date(reservaconfirmada.dataFim).toLocaleDateString('pt-BR', { dateStyle: 'short' });
+            const horaFimFormatada = new Date(reservaconfirmada.dataFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
             // Configurações do e-mail
             const mailOptions = {
                 from: 'nao-responda@dokapack.com.br',
                 to: reserva.email, // Email do solicitante
-                subject: 'Reserva Confirmada',
-                text: `Olá ${reservaConfirmada.nome},\n\nSua solicitação de reserva foi confirmada!\n\nDetalhes da Reserva:\nData de Início: ${dataInicioFormatada} ${horaInicioFormatada}\nData de Término: ${dataFimFormatada} ${horaFimFormatada}\n\nObrigado!`
+                subject: 'Reserva confirmada',
+                text: `Olá ${reservaconfirmada.nome},\n\nSua solicitação de reserva foi confirmada!\n\nDetalhes da Reserva:\nData de Início: ${dataInicioFormatada} ${horaInicioFormatada}\nData de Término: ${dataFimFormatada} ${horaFimFormatada}\n\nObrigado!`
             };
 
             await enviarEmail(mailOptions);
-            return res.status(200).json({ success: true, reserva: reservaConfirmada });
+            return res.status(200).json({ success: true, reserva: reservaconfirmada });
         } else {
             return res.status(400).json({ success: false, message: 'Reserva já foi confirmada.' });
         }
@@ -275,26 +275,26 @@ app.post('/admin/reservas/rejeitar/:id', async (req, res) => {
             return res.status(400).json({ success: false, message: 'A reserva já foi confirmada e não pode ser rejeitada.' });
         }
 
-        const reservaRejeitada = await Reserva.findByIdAndUpdate(reservaId, { status: 'rejeitada' }, { new: true });
+        const reservarejeitada = await Reserva.findByIdAndUpdate(reservaId, { status: 'rejeitada' }, { new: true });
 
-        const dataInicioFormatada = new Date(reservaRejeitada.dataInicio).toLocaleDateString('pt-BR', { dateStyle: 'short' });
-        const horaInicioFormatada = new Date(reservaRejeitada.horaInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const dataInicioFormatada = new Date(reservarejeitada.dataInicio).toLocaleDateString('pt-BR', { dateStyle: 'short' });
+        const horaInicioFormatada = new Date(reservarejeitada.horaInicio).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         
-        const dataFimFormatada = new Date(reservaRejeitada.dataFim).toLocaleDateString('pt-BR', { dateStyle: 'short' });
-        const horaFimFormatada = new Date(reservaRejeitada.horaFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+        const dataFimFormatada = new Date(reservarejeitada.dataFim).toLocaleDateString('pt-BR', { dateStyle: 'short' });
+        const horaFimFormatada = new Date(reservarejeitada.horaFim).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
         
         const mailOptions = {
             from: 'nao-responda@dokapack.com.br',
             to: reserva.email, // Email do solicitante
-            subject: 'Reserva Rejeitada',
-            text: `Olá ${reservaRejeitada.nome},\n\nLamentamos informar que sua solicitação de reserva foi rejeitada.\n\nDetalhes da Reserva:\nData de Início: ${dataInicioFormatada} ${horaInicioFormatada}\nData de Término: ${dataFimFormatada} ${horaFimFormatada}\n\nEntre em contato conosco para mais detalhes.`
+            subject: 'Reserva rejeitada',
+            text: `Olá ${reservarejeitada.nome},\n\nLamentamos informar que sua solicitação de reserva foi rejeitada.\n\nDetalhes da Reserva:\nData de Início: ${dataInicioFormatada} ${horaInicioFormatada}\nData de Término: ${dataFimFormatada} ${horaFimFormatada}\n\nEntre em contato conosco para mais detalhes.`
         };        
 
         await enviarEmail(mailOptions);
 
-        console.log('Reserva rejeitada:', reservaRejeitada);
+        console.log('Reserva rejeitada:', reservarejeitada);
 
-        return res.status(200).json({ success: true, reserva: reservaRejeitada });
+        return res.status(200).json({ success: true, reserva: reservarejeitada });
     } catch (error) {
         console.error('Erro ao rejeitar a reserva:', error);
         return res.status(500).json({ success: false, message: 'Erro no servidor.' });
